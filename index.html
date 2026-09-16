@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anglerquiz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="scene">
+  <div class="water-glow" aria-hidden="true"></div>
+  <div class="app">
+
+    <div class="topbar" id="topbar" hidden>
+      <div class="progress-rail">
+        <span class="rail-track"></span>
+        <svg class="rail-fish" id="railFish" width="26" height="16" viewBox="0 0 26 16" aria-hidden="true">
+          <path d="M2,8 C2,4 8,1 15,1 C20,1 24,4 25,8 C24,12 20,15 15,15 C8,15 2,12 2,8 Z" fill="var(--accent-strong)"/>
+          <path d="M3,8 L-2,2 L-2,14 Z" fill="var(--accent-strong)" transform="translate(4,0)"/>
+          <circle cx="19" cy="6.5" r="1.4" fill="#1a2a20"/>
+        </svg>
+        <svg class="rail-hook" width="18" height="26" viewBox="0 0 18 26" aria-hidden="true">
+          <circle cx="9" cy="4" r="2.4" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M9,7 L9,17 C9,22 16,22 16,17 C16,14.5 13.5,13.5 12,15.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="timer">
+        <svg class="timer-ring" viewBox="0 0 44 44">
+          <circle class="ring-bg" cx="22" cy="22" r="19"/>
+          <circle class="ring-fg" id="ringFg" cx="22" cy="22" r="19"/>
+        </svg>
+        <span id="timerNum">30</span>
+      </div>
+    </div>
+
+    <!-- START -->
+    <section class="screen" id="screen-start">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 40 40" aria-hidden="true">
+            <path d="M4,20 C4,12 14,6 24,6 C30,6 36,11 38,20 C36,29 30,34 24,34 C14,34 4,28 4,20 Z" fill="var(--accent)"/>
+            <path d="M6,20 L-2,10 L-2,30 Z" fill="var(--accent)" transform="translate(6,0)"/>
+            <circle cx="29" cy="16" r="2" fill="#12261f"/>
+          </svg>
+          <h1>Anglerquiz</h1>
+        </div>
+        <p class="lede">Wähle eine Schwierigkeitsstufe und beantworte zehn Fragen zu Ausrüstung, Technik und Fischverhalten, teils mit Fischbildern zum Erkennen.</p>
+      </div>
+
+      <div class="card">
+        <span class="section-label">Schwierigkeit wählen</span>
+        <div class="difficulty-grid" id="diffGrid">
+          <button type="button" class="diff-card" data-diff="leicht">
+            <span class="diff-name dot">Leicht</span>
+            <span class="diff-meta">10 Fragen · 30 Sek. pro Frage</span>
+          </button>
+          <button type="button" class="diff-card selected" data-diff="mittel">
+            <span class="diff-name dot">Mittel</span>
+            <span class="diff-meta">10 Fragen · 25 Sek. pro Frage</span>
+          </button>
+          <button type="button" class="diff-card" data-diff="schwer">
+            <span class="diff-name dot">Schwer</span>
+            <span class="diff-meta">10 Fragen · 20 Sek. pro Frage</span>
+          </button>
+        </div>
+
+        <div class="field">
+          <label for="nameInput">Dein Name für die Bestenliste</label>
+          <input type="text" id="nameInput" placeholder="z. B. Petra" maxlength="24" autocomplete="off">
+        </div>
+        <button class="btn btn-primary" id="startBtn">Quiz starten</button>
+        <p class="rules-note">Nach jeder Antwort geht es automatisch weiter, du musst nichts anklicken. Jede Schwierigkeitsstufe hat ihre eigene Bestenliste.</p>
+      </div>
+    </section>
+
+    <!-- QUIZ -->
+    <section class="screen" id="screen-quiz" hidden>
+      <div class="q-meta">
+        <span class="badge" id="qBadge">Mittel</span>
+        <span class="q-count" id="qCount">Frage 1 / 10</span>
+      </div>
+      <p class="photo-tag" id="photoTag" hidden>🖼️ Bild-Frage</p>
+      <h2 class="q-text" id="qText"></h2>
+      <div class="fish-illustration" id="qImage" hidden></div>
+      <div class="options" id="qOptions"></div>
+      <p class="explain" id="qExplain" hidden></p>
+    </section>
+
+    <!-- RESULT -->
+    <section class="screen" id="screen-result" hidden>
+      <div class="result-hero">
+        <span class="tier-icon" id="tierIcon">🎣</span>
+        <h2 class="tier-title" id="tierTitle">Auswertung</h2>
+        <p class="tier-msg" id="tierMsg"></p>
+        <p class="score-big" id="scoreBig"></p>
+        <p class="rank-line" id="rankLine"></p>
+      </div>
+      <button class="btn btn-primary" id="againBtn">Nochmal spielen</button>
+
+      <div class="card leaderboard">
+        <h2 id="lbTitle">Bestenliste heute · Mittel</h2>
+        <ul class="lb-list" id="lbList"></ul>
+        <p class="lb-empty" id="lbEmpty" hidden>Noch niemand auf der heutigen Liste. Sei der Erste.</p>
+        <p class="lb-hint" id="lbHint" hidden>Die Bestenliste ist in dieser Ansicht nicht verfügbar.</p>
+      </div>
+    </section>
+
+    <p class="credit">Mit KI-Unterstützung erstellt · Anglerquiz</p>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
