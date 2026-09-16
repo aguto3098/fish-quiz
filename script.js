@@ -173,6 +173,7 @@
     railFish: document.getElementById('railFish'),
     ringFg: document.getElementById('ringFg'),
     timerNum: document.getElementById('timerNum'),
+    screenIntro: document.getElementById('screen-intro'),
     screenStart: document.getElementById('screen-start'),
     screenQuiz: document.getElementById('screen-quiz'),
     screenResult: document.getElementById('screen-result'),
@@ -192,8 +193,15 @@
     scoreBig: document.getElementById('scoreBig'),
     againBtn: document.getElementById('againBtn'),
     lbTitle: document.getElementById('lbTitle'),
+    bestName: document.getElementById('bestName'),
     bestScoreLine: document.getElementById('bestScoreLine'),
-    bestNote: document.getElementById('bestNote')
+    bestNote: document.getElementById('bestNote'),
+    themeToggle: document.getElementById('themeToggle'),
+    soundToggle: document.getElementById('soundToggle'),
+    correctFish: document.getElementById('correctFish'),
+    introStartBtn: document.getElementById('introStartBtn'),
+    loadingOverlay: document.getElementById('loadingOverlay'),
+    loadingRingFg: document.getElementById('loadingRingFg')
   };
 
   var RING_CIRC = 2 * Math.PI * 19;
@@ -211,6 +219,7 @@
   }
 
   function showScreen(name){
+    els.screenIntro.hidden = name !== 'intro';
     els.screenStart.hidden = name !== 'start';
     els.screenQuiz.hidden = name !== 'quiz';
     els.screenResult.hidden = name !== 'result';
@@ -311,7 +320,13 @@
       else if (i === selectedIdx) btn.classList.add('wrong');
     });
 
-    if (selectedIdx === q.correct) state.score++;
+    if (selectedIdx === q.correct){
+      state.score++;
+      playCorrectSound();
+      playCorrectFish();
+    } else {
+      playWrongSound();
+    }
 
     els.qExplain.hidden = false;
     els.qExplain.innerHTML = '<strong>' + (selectedIdx === q.correct ? 'Richtig. ' : 'Leider falsch. ') + '</strong>' + q.explain;
@@ -328,6 +343,7 @@
   function finishQuiz(){
     showScreen('result');
     renderResult();
+    launchConfetti();
   }
 
   function bestKey(difficulty){
@@ -363,6 +379,7 @@
     if (isNewRecord) saveBest(state.difficulty, state.score, state.order.length);
     var bestScore = isNewRecord ? state.score : prevBest.score;
 
+    els.bestName.textContent = state.name;
     els.bestScoreLine.textContent = bestScore + ' / ' + state.order.length;
     els.bestNote.textContent = isNewRecord
       ? 'Neue persönliche Bestleistung auf diesem Gerät! 🎉'
@@ -372,5 +389,132 @@
   els.startBtn.addEventListener('click', startQuiz);
   els.nameInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') startQuiz(); });
   els.againBtn.addEventListener('click', function(){ showScreen('start'); });
+
+  // --- Hell/Dunkel-Modus ---
+  function applyTheme(theme){
+    document.documentElement.setAttribute('data-theme', theme);
+    els.themeToggle.textContent = theme === 'light' ? '☀️' : '🌙';
+    try { localStorage.setItem('anglerquiz_theme', theme); } catch (e){}
+  }
+
+  (function initTheme(){
+    var saved = null;
+    try { saved = localStorage.getItem('anglerquiz_theme'); } catch (e){}
+    applyTheme(saved === 'light' ? 'light' : 'dark');
+  })();
+
+  els.themeToggle.addEventListener('click', function(){
+    var current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    applyTheme(current === 'light' ? 'dark' : 'light');
+  });
+
+  // --- Ton an/aus + einfache Signaltöne (Web Audio API, keine Audiodateien nötig) ---
+  var soundOn = true;
+  var audioCtx = null;
+
+  function getAudioCtx(){
+    if (!audioCtx){
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      audioCtx = new Ctx();
+    }
+    return audioCtx;
+  }
+
+  function beep(freq, duration, type, delay){
+    if (!soundOn) return;
+    var ctx = getAudioCtx();
+    if (!ctx) return;
+    try {
+      var start = ctx.currentTime + (delay || 0);
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = type || 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.22, start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + duration + 0.02);
+    } catch (e){}
+  }
+
+  function playCorrectSound(){
+    beep(740, 0.16, 'sine', 0);
+    beep(1180, 0.2, 'sine', 0.09);
+  }
+
+  function playWrongSound(){
+    beep(190, 0.28, 'sawtooth', 0);
+  }
+
+  (function initSound(){
+    var saved = null;
+    try { saved = localStorage.getItem('anglerquiz_sound'); } catch (e){}
+    soundOn = saved !== 'off';
+    els.soundToggle.textContent = soundOn ? '🔊' : '🔇';
+  })();
+
+  els.soundToggle.addEventListener('click', function(){
+    soundOn = !soundOn;
+    els.soundToggle.textContent = soundOn ? '🔊' : '🔇';
+    try { localStorage.setItem('anglerquiz_sound', soundOn ? 'on' : 'off'); } catch (e){}
+    if (soundOn) beep(740, 0.12, 'sine', 0);
+  });
+
+  // --- Minik Fisch-Animation bei richtiger Antwort ---
+  function playCorrectFish(){
+    els.correctFish.classList.remove('play');
+    // reflow erzwingen, damit die Animation erneut startet
+    void els.correctFish.offsetWidth;
+    els.correctFish.classList.add('play');
+  }
+
+  // --- Konfetti am Ende des Quiz ---
+  function launchConfetti(){
+    var colors = ['#e0a955', '#f2c079', '#4caf7d', '#d9695f', '#eef3f0'];
+    var count = 36;
+    for (var i = 0; i < count; i++){
+      (function(){
+        var piece = document.createElement('span');
+        piece.className = 'confetti-piece';
+        var size = 6 + Math.random() * 6;
+        piece.style.width = size + 'px';
+        piece.style.height = (size * 0.4) + 'px';
+        piece.style.left = (Math.random() * 100) + 'vw';
+        piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+        var duration = 2.4 + Math.random() * 1.6;
+        piece.style.animationDuration = duration + 's';
+        piece.style.animationDelay = (Math.random() * 0.4) + 's';
+        document.body.appendChild(piece);
+        setTimeout(function(){ piece.remove(); }, (duration + 0.6) * 1000);
+      })();
+    }
+  }
+
+  // --- Intro: Start-Button zeigt kurze Ladeanimation, dann Schwierigkeitsauswahl ---
+  function showLoadingThenStart(){
+    els.loadingRingFg.classList.remove('animate');
+    els.loadingRingFg.style.strokeDashoffset = '213.6';
+    els.loadingOverlay.hidden = false;
+
+    requestAnimationFrame(function(){
+      els.loadingOverlay.classList.add('show');
+      requestAnimationFrame(function(){
+        els.loadingRingFg.classList.add('animate');
+        els.loadingRingFg.style.strokeDashoffset = '0';
+      });
+    });
+
+    setTimeout(function(){
+      showScreen('start');
+      els.loadingOverlay.classList.remove('show');
+      setTimeout(function(){ els.loadingOverlay.hidden = true; }, 300);
+    }, 2000);
+  }
+
+  els.introStartBtn.addEventListener('click', showLoadingThenStart);
 
 })();
